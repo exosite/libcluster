@@ -227,9 +227,20 @@ defmodule Cluster.Strategy.Kubernetes do
           end
 
         headers = [{'authorization', 'Bearer #{token}'}]
-        http_options = [ssl: [verify: :verify_none], timeout: 15000]
 
-        case :httpc.request(:get, {'https://#{master}/#{path}', headers}, http_options, []) do
+        http_options =
+          Keyword.get(config, :kubernetes_httpc_http_options, ssl: [verify: :none], timeout: 15000)
+
+        options = Keyword.get(config, :kubernetes_httpc_options, [])
+        uri_port = Keyword.get(config, :kubernetes_port, 443)
+        uri_scheme = Keyword.get(config, :kubernetes_scheme, 'https')
+
+        case :httpc.request(
+               :get,
+               {'#{uri_scheme}://#{master}:#{uri_port}/#{path}', headers},
+               http_options,
+               options
+             ) do
           {:ok, {{_version, 200, _status}, _headers, body}} ->
             parse_response(ip_lookup_mode, Jason.decode!(body))
             |> Enum.map(fn node_info ->
